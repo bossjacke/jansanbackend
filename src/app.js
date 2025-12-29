@@ -24,15 +24,26 @@ const allowedOrigins = [
   "http://localhost:5175"
 ].filter(Boolean); // Remove any undefined/null values
 
+// Also create versions without trailing slashes for comparison
+const normalizedAllowedOrigins = allowedOrigins.map(origin => 
+  origin ? origin.replace(/\/$/, '') : origin
+);
+
 app.use(
   cors({
     origin: (origin, callback) => {
       // Allow requests with no origin (like mobile apps or curl requests)
       if (!origin) return callback(null, true);
       
-      if (allowedOrigins.includes(origin)) {
+      // Normalize the incoming origin by removing trailing slash
+      const normalizedOrigin = origin.replace(/\/$/, '');
+      
+      // Check both original and normalized origins
+      if (allowedOrigins.includes(origin) || normalizedAllowedOrigins.includes(normalizedOrigin)) {
         callback(null, true);
       } else {
+        console.log('CORS blocked origin:', origin);
+        console.log('Allowed origins:', [...allowedOrigins, ...normalizedAllowedOrigins]);
         callback(new Error('Not allowed by CORS'));
       }
     },
