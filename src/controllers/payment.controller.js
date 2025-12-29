@@ -4,7 +4,18 @@ import Order from "../models/order.model.js";
 import User from "../models/user.model.js";
 import stripe from "stripe";
 
-const stripeInstance = stripe(process.env.STRIPE_SECRET_KEY);
+// Initialize Stripe lazily to ensure environment variables are loaded
+let stripeInstance = null;
+
+const getStripeInstance = () => {
+  if (!stripeInstance) {
+    if (!process.env.STRIPE_SECRET_KEY) {
+      throw new Error('STRIPE_SECRET_KEY is not configured in environment variables');
+    }
+    stripeInstance = stripe(process.env.STRIPE_SECRET_KEY);
+  }
+  return stripeInstance;
+};
 
 // Create Payment Intent
 export const createPaymentIntent = async (req, res) => {
@@ -38,7 +49,7 @@ export const createPaymentIntent = async (req, res) => {
 
     const amountInPaise = Math.round(amount * 100); // INR uses paise (100 paise = 1 INR)
 
-    const paymentIntent = await stripeInstance.paymentIntents.create({
+    const paymentIntent = await getStripeInstance().paymentIntents.create({
       amount: amountInPaise,
       currency: currency,
       automatic_payment_methods: { enabled: true },
@@ -89,7 +100,7 @@ export const confirmPayment = async (req, res) => {
       });
     }
 
-    const paymentIntent = await stripeInstance.paymentIntents.retrieve(paymentIntentId);
+    const paymentIntent = await getStripeInstance().paymentIntents.retrieve(paymentIntentId);
 
     if (paymentIntent.status !== "succeeded") {
       return res.status(400).json({ 
@@ -273,7 +284,7 @@ export const processRefund = async (req, res) => {
       });
     }
 
-    const refund = await stripeInstance.refunds.create({
+    const refund = await getStripeInstance().refunds.create({
       payment_intent: payment.stripePaymentIntentId,
       reason: "requested_by_customer",
       metadata: { reason }

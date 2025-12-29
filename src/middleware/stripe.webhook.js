@@ -3,8 +3,18 @@ import Payment from "../models/payment.model.js";
 import Order from "../models/order.model.js";
 import stripe from "stripe";
 
-// Initialize Stripe
-const stripeInstance = stripe(process.env.STRIPE_SECRET_KEY);
+// Initialize Stripe lazily to ensure environment variables are loaded
+let stripeInstance = null;
+
+const getStripeInstance = () => {
+  if (!stripeInstance) {
+    if (!process.env.STRIPE_SECRET_KEY) {
+      throw new Error('STRIPE_SECRET_KEY is not configured in environment variables');
+    }
+    stripeInstance = stripe(process.env.STRIPE_SECRET_KEY);
+  }
+  return stripeInstance;
+};
 
 // ==================== STRIPE WEBHOOK HANDLER ====================
 export const handleStripeWebhook = async (req, res) => {
@@ -24,7 +34,7 @@ export const handleStripeWebhook = async (req, res) => {
     let event;
 
     try {
-      event = stripeInstance.webhooks.constructEvent(req.body, sig, webhookSecret);
+      event = getStripeInstance().webhooks.constructEvent(req.body, sig, webhookSecret);
       console.log('Webhook signature verified successfully');
       console.log('Event type:', event.type);
     } catch (err) {
