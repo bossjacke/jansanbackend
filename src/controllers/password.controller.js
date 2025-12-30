@@ -151,72 +151,108 @@ const generateOTPEmailTemplate = (otp, userName) => {
 const otpRequests = new Map();
 
 export const forgotPassword = async (req, res) => {
+  const startTime = Date.now();
   const { email } = req.body;
   
-  // Input validation
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return res.status(400).json({ message: 'Valid email required' });
-  }
-
-  // Rate limiting: max 3 requests per 15 minutes per email
-  const now = Date.now();
-  const userRequests = otpRequests.get(email) || [];
-  const recentRequests = userRequests.filter(time => now - time < 15 * 60 * 1000);
-  
-  if (recentRequests.length >= 3) {
-    return res.status(429).json({ 
-      message: 'Too many requests. Please try again later.' 
-    });
-  }
-
   try {
-    const user = await User.findOne({ email: email.toLowerCase() });
+    // Input validation
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ message: 'Valid email required' });
+    }
+
+    // Rate limiting: max 3 requests per 15 minutes per email
+    const now = Date.now();
+    const userRequests = otpRequests.get(email) || [];
+    const recentRequests = userRequests.filter(time => now - time < 15 * 60 * 1000);
     
-    // Always return success to prevent email enumeration
-    if (!user) {
-      return res.json({ message: 'If email exists, OTP sent successfully' });
-    }
-
-    // Generate 6-digit OTP
-    const otp = crypto.randomInt(100000, 999999).toString();
-    const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-
-    // Save OTP to database
-    user.otp = otp;
-    user.otpExpires = otpExpires;
-    await user.save();
-
-    // Update rate limiting
-    recentRequests.push(now);
-    otpRequests.set(email, recentRequests);
-
-    // Send email
-    const subject = '🔐 Password Reset OTP - Jansan E-commerce';
-    const text = `Your password reset OTP is: ${otp}\n\nThis OTP expires in 10 minutes.\n\nIf you didn't request this, please ignore this email.`;
-
-    try {
-      await sendEmail({ 
-        to: user.email, 
-        subject, 
-        text,
-        html: generateOTPEmailTemplate(otp, user.name || 'User')
+    if (recentRequests.length >= 3) {
+      return res.status(429).json({ 
+        message: 'Too many requests. Please try again later.' 
       });
-      console.log('✅ OTP sent successfully to:', user.email);
-    } catch (emailError) {
-      console.error('❌ Email send failed:', emailError);
-      // Log OTP for development in case email fails
-      console.log('=== DEVELOPMENT FALLBACK ===');
-      console.log('Email:', user.email);
-      console.log('OTP:', otp);
-      console.log('Expires:', otpExpires);
-      console.log('============================');
-      // Don't fail the request if email fails - OTP is still saved in database
     }
 
-    res.json({ message: 'If email exists, OTP sent successfully' });
+    // Set a timeout for the entire operation
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Operation timeout')), 8000)
+    );
+
+    const operationPromise = async () => {
+      const user = await User.findOne({ email: email.toLowerCase() });
+      
+      // Always return success to prevent email enumeration
+      if (!user) {
+        console.log(`📧 Forgot password request for non-existent email: ${email}`);
+        return { message: 'If email exists, OTP sent successfully', emailSent: false };
+      }
+
+      // Generate 6-digit OTP
+      const otp = crypto.randomInt(100000, 999999).toString();
+      const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+      // Save OTP to database
+      user.otp = otp;
+      user.otpExpires = otpExpires;
+      await user.save();
+
+      // Update rate limiting
+      recentRequests.push(now);
+      otpRequests.set(email, recentRequests);
+
+      // Send email with timeout
+      const subject = '🔐 Password Reset OTP - Jansan E-commerce';
+      const text = `Your password reset OTP is: ${otp}\n\nThis OTP expires in 10 minutes.\n\nIf you didn't request this, please ignore this email.`;
+
+      let emailSent = true;
+      try {
+        // Add timeout to email sending
+        const emailPromise = sendEmail({ 
+          to: user.email, 
+          subject, 
+          text,
+          html: generateOTPEmailTemplate(otp, user.name || 'User')
+        });
+        
+        // Wait for email with a 5-second timeout
+        await Promise.race([
+          emailPromise,
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Email timeout')), 5000)
+          )
+        ]);
+        
+        console.log('✅ OTP sent successfully to:', user.email);
+      } catch (emailError) {
+        emailSent = false;
+        console.error('❌ Email send failed or timed out:', emailError.message);
+        // Log OTP for development in case email fails
+        console.log('=== DEVELOPMENT FALLBACK ===');
+        console.log('Email:', user.email);
+        console.log('OTP:', otp);
+        console.log('Expires:', otpExpires);
+        console.log('============================');
+        // Don't fail the request if email fails - OTP is still saved in database
+      }
+
+      return { message: 'If email exists, OTP sent successfully', emailSent };
+    };
+
+    // Race between operation and timeout
+    const result = await Promise.race([operationPromise(), timeoutPromise]);
+    
+    // Log performance
+    const duration = Date.now() - startTime;
+    console.log(`⏱️ Forgot password completed in ${duration}ms for ${email}`);
+    
+    res.json({ message: result.message, emailSent: result.emailSent });
     
   } catch (error) {
-    console.error('Forgot password error:', error);
+    const duration = Date.now() - startTime;
+    console.error(`❌ Forgot password error after ${duration}ms:`, error.message);
+    
+    if (error.message === 'Operation timeout') {
+      return res.status(408).json({ message: 'Request timeout. Please try again.' });
+    }
+    
     res.status(500).json({ message: 'Server error' });
   }
 };
