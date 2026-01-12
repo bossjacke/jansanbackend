@@ -12,50 +12,34 @@ import chatRoutes from "./routes/chat.routes.js";
 import paymentRoutes from "./routes/payment.routes.js";
 import { handleStripeWebhook } from "./middleware/stripe.webhook.js";
 
-
 dotenv.config();
 const app = express();
 
-// Enable CORS
+// CORS configuration
 const allowedOrigins = [
   process.env.FRONTEND_URL,
   process.env.CLIENT_URL,
   "http://localhost:5173",
   "http://localhost:5174",
   "http://localhost:5175"
-].filter(Boolean); // Remove any undefined/null values
+].filter(Boolean);
 
-// Also create versions without trailing slashes for comparison
-const normalizedAllowedOrigins = allowedOrigins.map(origin => 
-  origin ? origin.replace(/\/$/, '') : origin
-);
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    const normalizedOrigin = origin.replace(/\/$/, '');
+    if (allowedOrigins.includes(origin) || allowedOrigins.includes(normalizedOrigin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true,
+  optionsSuccessStatus: 200
+}));
 
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps or curl requests)
-      if (!origin) return callback(null, true);
-      
-      // Normalize the incoming origin by removing trailing slash
-      const normalizedOrigin = origin.replace(/\/$/, '');
-      
-      // Check both original and normalized origins
-      if (allowedOrigins.includes(origin) || normalizedAllowedOrigins.includes(normalizedOrigin)) {
-        callback(null, true);
-      } else {
-        console.log('CORS blocked origin:', origin);
-        console.log('Allowed origins:', [...allowedOrigins, ...normalizedAllowedOrigins]);
-        callback(new Error('Not allowed by CORS'));
-      }
-    },
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true,
-    optionsSuccessStatus: 200
-  })
-);
-
-// Middleware
 app.use(express.json());
 
 // Stripe Webhook (must be before express.json middleware for raw body)
@@ -64,7 +48,7 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), hand
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
-app.use("/api/password", passwordRoutes); // Password reset routes
+app.use("/api/password", passwordRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/cart", cartRoutes);
@@ -72,9 +56,8 @@ app.use("/api/chat", chatRoutes);
 app.use("/api/payment", paymentRoutes);
 
 // Database connection
-console.log('🔗 Initializing database connection...');
 connectDB().catch(err => {
-    console.error('❌ Failed to connect to database:', err);
+    console.error('Failed to connect to database:', err);
     process.exit(1);
 });
 

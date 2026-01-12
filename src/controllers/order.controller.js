@@ -6,17 +6,8 @@ import User from "../models/user.model.js";
 
 // ==================== CREATE ORDER ====================
 export const createOrder = async (req, res) => {
-  console.log('\n========================================');
-  console.log('CREATE ORDER FUNCTION CALLED');
-  console.log('========================================');
-  console.log('Request body:', JSON.stringify(req.body, null, 2));
-  console.log('User ID:', req.user?.id);
-  console.log('========================================\n');
-  
   try {
-    // Validate request has required fields
     if (!req.body) {
-      console.error('No request body');
       return res.status(400).json({
         success: false,
         message: "Request body is empty"
@@ -24,13 +15,6 @@ export const createOrder = async (req, res) => {
     }
 
     const { shippingAddress, items, totalAmount, paymentMethod, paymentIntentId } = req.body;
-
-    console.log('Extracted from req.body:');
-    console.log('  - items:', items?.length || 'MISSING');
-    console.log('  - shippingAddress:', shippingAddress ? 'PRESENT' : 'MISSING');
-    console.log('  - totalAmount:', totalAmount || 'MISSING', '(type:', typeof totalAmount, ')');
-    console.log('  - paymentMethod:', paymentMethod || 'MISSING');
-    console.log('  - paymentIntentId:', paymentIntentId || 'MISSING');
 
     // Validate payment method
     const validPaymentMethods = ["cash_on_delivery", "stripe", "online_payment"];
@@ -41,12 +25,8 @@ export const createOrder = async (req, res) => {
       });
     }
 
-    // Payment intent ID is not required for initial order creation
-    // It will be set after successful payment confirmation
-
     // Validate required fields from frontend
     if (!items || !Array.isArray(items) || items.length === 0) {
-      console.error('Missing or empty items array');
       return res.status(400).json({
         success: false,
         message: "Order must contain at least one item"
@@ -54,7 +34,6 @@ export const createOrder = async (req, res) => {
     }
 
     if (!shippingAddress) {
-      console.error('Missing shipping address');
       return res.status(400).json({
         success: false,
         message: "Shipping address is required"
@@ -62,7 +41,6 @@ export const createOrder = async (req, res) => {
     }
 
     if (!totalAmount || totalAmount <= 0) {
-      console.error('Invalid totalAmount:', totalAmount);
       return res.status(400).json({
         success: false,
         message: "Order total amount must be greater than 0"
@@ -71,10 +49,6 @@ export const createOrder = async (req, res) => {
 
     logger.info("Creating order for user:", req.user.id);
 
-    // Use items from request body (items array sent by frontend)
-    console.log('Processing items from request body...');
-    console.log('Number of items:', items.length);
-    
     // Extract product IDs from request items
     const productIds = items.map(item => {
       if (typeof item.productId === 'string') {
@@ -86,16 +60,12 @@ export const createOrder = async (req, res) => {
       }
     });
 
-    console.log('Product IDs from request:', productIds);
-    
     // Fetch products from database to validate stock
     const products = await Product.find({ _id: { $in: productIds } });
-    console.log(`Found ${products.length}/${productIds.length} products in database`);
 
     if (products.length !== productIds.length) {
       const foundIds = products.map(p => p._id.toString());
       const missingIds = productIds.filter(id => !foundIds.includes(id));
-      console.error('Missing product IDs:', missingIds);
       return res.status(400).json({
         success: false,
         message: `Some products not found in database`
@@ -116,7 +86,6 @@ export const createOrder = async (req, res) => {
       const product = products.find(p => p._id.toString() === itemProductId);
 
       if (!product) {
-        console.error('Product not found:', itemProductId);
         return res.status(400).json({
           success: false,
           message: `Product ${itemProductId} not found`
@@ -125,7 +94,6 @@ export const createOrder = async (req, res) => {
 
       // Check stock
       if (product.stock < requestItem.quantity) {
-        console.warn(`Stock insufficient for ${product.name}: need ${requestItem.quantity}, have ${product.stock}`);
         return res.status(400).json({
           success: false,
           message: `${product.name} - insufficient stock (need ${requestItem.quantity}, available ${product.stock})`
@@ -137,8 +105,6 @@ export const createOrder = async (req, res) => {
         quantity: requestItem.quantity,
         price: requestItem.price || product.price || 0
       });
-
-      console.log(`Added to order: ${product.name} x${requestItem.quantity} @ Rs.${requestItem.price}`);
     }
 
     // Get user for auto-fill address
@@ -164,7 +130,6 @@ export const createOrder = async (req, res) => {
     const missingFields = requiredFields.filter(field => !finalShippingAddress[field]);
     
     if (missingFields.length > 0) {
-      console.error('Missing shipping address fields:', missingFields);
       return res.status(400).json({
         success: false,
         message: `Missing shipping address: ${missingFields.join(', ')}`
@@ -173,9 +138,8 @@ export const createOrder = async (req, res) => {
 
     // Generate unique order number
     const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
-    console.log('Generated order number:', orderNumber);
 
-    // Create order (use totalAmount from request)
+    // Create order
     const order = await Order.create({
       userId: req.user.id,
       orderNumber: orderNumber,
@@ -189,8 +153,6 @@ export const createOrder = async (req, res) => {
       paymentStatus: (paymentMethod === "stripe" || paymentMethod === "online_payment") ? "pending" : "pending"
     });
 
-    console.log('Order created:', order._id);
-
     // Clear cart for user
     try {
       await Cart.findOneAndUpdate(
@@ -198,10 +160,8 @@ export const createOrder = async (req, res) => {
         { items: [], totalAmount: 0 },
         { new: true }
       );
-      console.log('Cart cleared for user:', req.user.id);
     } catch (cartError) {
       console.error('Warning: Error clearing cart (non-critical):', cartError.message);
-      // Don't throw - order was already created successfully
     }
 
     // Fetch complete order with populated data
@@ -214,18 +174,12 @@ export const createOrder = async (req, res) => {
       data: populatedOrder
     });
   } catch (err) {
-    console.error("CREATE ORDER ERROR - Full details:");
-    console.error("Error message:", err.message);
-    console.error("Error name:", err.name);
-    console.error("Stack trace:", err.stack);
-    
     // If Mongoose validation error, extract field errors
     if (err.name === 'ValidationError') {
       const fieldErrors = Object.keys(err.errors).map(field => ({
         field,
         message: err.errors[field].message
       }));
-      console.error("Validation errors:", fieldErrors);
       return res.status(400).json({
         success: false,
         message: "Order validation failed",
@@ -482,3 +436,4 @@ export const getAllOrders = async (req, res) => {
     });
   }
 };
+

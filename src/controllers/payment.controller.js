@@ -4,7 +4,6 @@ import Order from "../models/order.model.js";
 import User from "../models/user.model.js";
 import stripe from "stripe";
 
-// Initialize Stripe lazily to ensure environment variables are loaded
 let stripeInstance = null;
 
 const getStripeInstance = () => {
@@ -22,7 +21,6 @@ export const createPaymentIntent = async (req, res) => {
   try {
     const { amount, orderId, currency = "inr", metadata = {} } = req.body;
 
-    // Validate required fields
     if (!amount || amount <= 0) {
       return res.status(400).json({
         success: false,
@@ -30,7 +28,6 @@ export const createPaymentIntent = async (req, res) => {
       });
     }
 
-    // Fetch user data to get email
     const user = await User.findById(req.user.id).select('email');
     if (!user) {
       return res.status(404).json({
@@ -39,7 +36,6 @@ export const createPaymentIntent = async (req, res) => {
       });
     }
 
-    // Validate user email exists
     if (!user.email) {
       return res.status(400).json({
         success: false,
@@ -47,7 +43,7 @@ export const createPaymentIntent = async (req, res) => {
       });
     }
 
-    const amountInPaise = Math.round(amount * 100); // INR uses paise (100 paise = 1 INR)
+    const amountInPaise = Math.round(amount * 100);
 
     const paymentIntent = await getStripeInstance().paymentIntents.create({
       amount: amountInPaise,
@@ -367,7 +363,6 @@ export const getUserPaymentsForAdmin = async (req, res) => {
     const { userId } = req.params;
     const { page = 1, limit = 10, status } = req.query;
 
-    // Validate userId
     if (!userId) {
       return res.status(400).json({
         success: false,
@@ -410,3 +405,4 @@ export const getUserPaymentsForAdmin = async (req, res) => {
     });
   }
 };
+

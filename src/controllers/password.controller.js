@@ -181,7 +181,6 @@ export const forgotPassword = async (req, res) => {
       
       // Always return success to prevent email enumeration
       if (!user) {
-        console.log(`📧 Forgot password request for non-existent email: ${email}`);
         return { message: 'If email exists, OTP sent successfully', emailSent: false };
       }
 
@@ -204,7 +203,6 @@ export const forgotPassword = async (req, res) => {
 
       let emailSent = true;
       try {
-        // Add timeout to email sending
         const emailPromise = sendEmail({ 
           to: user.email, 
           subject, 
@@ -212,25 +210,15 @@ export const forgotPassword = async (req, res) => {
           html: generateOTPEmailTemplate(otp, user.name || 'User')
         });
         
-        // Wait for email with a 5-second timeout
         await Promise.race([
           emailPromise,
           new Promise((_, reject) => 
             setTimeout(() => reject(new Error('Email timeout')), 5000)
           )
         ]);
-        
-        console.log('✅ OTP sent successfully to:', user.email);
       } catch (emailError) {
         emailSent = false;
-        console.error('❌ Email send failed or timed out:', emailError.message);
-        // Log OTP for development in case email fails
-        console.log('=== DEVELOPMENT FALLBACK ===');
-        console.log('Email:', user.email);
-        console.log('OTP:', otp);
-        console.log('Expires:', otpExpires);
-        console.log('============================');
-        // Don't fail the request if email fails - OTP is still saved in database
+        console.error('Email send failed:', emailError.message);
       }
 
       return { message: 'If email exists, OTP sent successfully', emailSent };
@@ -238,16 +226,12 @@ export const forgotPassword = async (req, res) => {
 
     // Race between operation and timeout
     const result = await Promise.race([operationPromise(), timeoutPromise]);
-    
-    // Log performance
     const duration = Date.now() - startTime;
-    console.log(`⏱️ Forgot password completed in ${duration}ms for ${email}`);
     
     res.json({ message: result.message, emailSent: result.emailSent });
     
   } catch (error) {
     const duration = Date.now() - startTime;
-    console.error(`❌ Forgot password error after ${duration}ms:`, error.message);
     
     if (error.message === 'Operation timeout') {
       return res.status(408).json({ message: 'Request timeout. Please try again.' });
@@ -305,9 +289,9 @@ export const resetPassword = async (req, res) => {
     res.json({ message: 'Password reset successfully' });
 
   } catch (error) {
-    console.error('Reset password error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
 
 export default { forgotPassword, resetPassword };
+
