@@ -32,6 +32,16 @@ app.use("/api/cart", cartRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/payment", paymentRoutes);
 
+// Health check route
+app.get('/health', (req, res) => {
+    res.status(200).json({
+        status: 'OK',
+        message: 'Backend server is running',
+        timestamp: new Date().toISOString(),
+        port: process.env.PORT || 3003
+    });
+});
+
 // Database connection
 connectDB().catch(err => {
     console.error('Failed to connect to database:', err);
