@@ -1,6 +1,5 @@
 import Product from "../models/product.model.js";
 
-// ✅ Get All Products (Bio-Gas and Fertilizer)
 export const getAllProducts = async (req, res) => {
   try {
     const products = await Product.find().sort({ createdAt: -1 });
@@ -18,7 +17,6 @@ export const getAllProducts = async (req, res) => {
   }
 };
 
-// ✅ Get Single Product by ID
 export const getProductById = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
@@ -41,7 +39,6 @@ export const getProductById = async (req, res) => {
   }
 };
 
-// ✅ Create New Product (Admin only)
 export const createProduct = async (req, res) => {
   try {
     const product = await Product.create(req.body);
@@ -59,7 +56,6 @@ export const createProduct = async (req, res) => {
   }
 };
 
-// ✅ Update Product (Admin only)
 export const updateProduct = async (req, res) => {
   try {
     const updated = await Product.findByIdAndUpdate(req.params.id, req.body, {
@@ -84,7 +80,6 @@ export const updateProduct = async (req, res) => {
   }
 };
 
-// ✅ Delete Product (Admin only)
 export const deleteProduct = async (req, res) => {
   try {
     await Product.findByIdAndDelete(req.params.id);
@@ -101,10 +96,3 @@ export const deleteProduct = async (req, res) => {
   }
 };
 
-export default {
-  getAllProducts,
-  getProductById,
-  createProduct,
-  updateProduct,
-  deleteProduct,
-};

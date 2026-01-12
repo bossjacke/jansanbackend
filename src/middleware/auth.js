@@ -15,7 +15,7 @@ export const authMiddleware = (req, res, next) => {
 
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
-        req.user = decoded; // { id, role }
+        req.user = decoded;
         next();
     } catch (error) {
         res.status(401).json({ 
@@ -24,3 +24,16 @@ export const authMiddleware = (req, res, next) => {
         });
     }
 };
+
+export const roleCheck = (allowedRoles) => {
+  return (req, res, next) => {
+    if (!allowedRoles.includes(req.user.role)) {
+      return res.status(403).json({ 
+        success: false,
+        message: `Access denied. Required roles: ${allowedRoles.join(', ')}` 
+      });
+    }
+    next();
+  };
+};
+

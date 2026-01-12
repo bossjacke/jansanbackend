@@ -1,17 +1,13 @@
-const getTimestamp = () => {
-  return new Date().toISOString();
-};
-
 const info = (...args) => {
-  console.log('[INFO]', getTimestamp(), ...args);
+  console.log('[INFO]', ...args);
 };
 
 const warn = (...args) => {
-  console.warn('[WARN]', getTimestamp(), ...args);
+  console.warn('[WARN]', ...args);
 };
 
 const error = (...args) => {
-  console.error('[ERROR]', getTimestamp(), ...args);
+  console.error('[ERROR]', ...args);
 };
 
 export default {
@@ -19,3 +15,4 @@ export default {
   warn,
   error,
 };
+

@@ -4,26 +4,21 @@ import User from "../models/user.model.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your_super_secret";
 
-// ✅ Register
 export const registerUser = async (req, res) => {
   try {
     const { name, email, phone, password, role, location } = req.body;
 
-    // Check if user exists
     const existingUser = await User.findOne({ email });
     if (existingUser)
       return res.status(400).json({ success: false, message: "Email already registered" });
 
-    // Validate required fields for customer role
     const effectiveRole = role || "customer";
     if (effectiveRole === "customer" && !location) {
       return res.status(400).json({ success: false, message: "Location is required for customers" });
     }
 
-    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create user
     const newUser = await User.create({
       name,
       email,
@@ -48,22 +43,18 @@ export const registerUser = async (req, res) => {
   }
 };
 
-// ✅ Login
 export const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Find user
     const user = await User.findOne({ email });
     if (!user)
       return res.status(404).json({ success: false, message: "User not found" });
 
-    // Compare password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch)
       return res.status(401).json({ success: false, message: "Invalid credentials" });
 
-    // Generate JWT
     const token = jwt.sign(
       { id: user._id, role: user.role },
       JWT_SECRET,
@@ -86,21 +77,19 @@ export const loginUser = async (req, res) => {
   }
 };
 
-// Get User Profile
 export const getUserProfile = async (req, res) => {
-    try {
-      const userId = req.user.id; // token-la irunthu id vaanguradhu
-      const user = await User.findById(userId).select("-password"); // password illa fetch
-  
-      if (!user) return res.status(404).json({ success: false, message: "User not found" });
-  
-      res.status(200).json({ success: true, user });
-    } catch (error) {
-      res.status(500).json({ success: false, message: "Server error", error: error.message });
-    }
-  };
+  try {
+    const userId = req.user.id;
+    const user = await User.findById(userId).select("-password");
 
-// Update Profile
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+
+    res.status(200).json({ success: true, user });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Server error", error: error.message });
+  }
+};
+
 export const updateUserProfile = async (req, res) => {
   try {
     const updates = req.body;
@@ -117,10 +106,8 @@ export const updateUserProfile = async (req, res) => {
   }
 };
 
-// Get All Users (Admin only)
 export const getAllUsers = async (req, res) => {
   try {
-    // Check if user is admin
     if (req.user.role !== "admin") {
       return res.status(403).json({ 
         success: false,
@@ -136,7 +123,6 @@ export const getAllUsers = async (req, res) => {
       count: users.length
     });
   } catch (error) {
-    console.error("Get all users error:", error);
     res.status(500).json({ 
       success: false,
       message: "Error fetching users", 
@@ -145,10 +131,8 @@ export const getAllUsers = async (req, res) => {
   }
 };
 
-// Delete User (Admin only) - Enhanced Version
 export const deleteUser = async (req, res) => {
   try {
-    // Check if user is admin
     if (req.user.role !== "admin") {
       return res.status(403).json({ 
         success: false,
@@ -158,7 +142,6 @@ export const deleteUser = async (req, res) => {
 
     const { userId } = req.params;
     
-    // Validate userId
     if (!userId || !userId.match(/^[0-9a-fA-F]{24}$/)) {
       return res.status(400).json({ 
         success: false,
@@ -166,7 +149,6 @@ export const deleteUser = async (req, res) => {
       });
     }
 
-    // Check if user exists
     const userToDelete = await User.findById(userId);
     if (!userToDelete) {
       return res.status(404).json({ 
@@ -175,7 +157,6 @@ export const deleteUser = async (req, res) => {
       });
     }
 
-    // Prevent admin from deleting themselves
     if (userId === req.user.id) {
       return res.status(400).json({ 
         success: false,
@@ -183,7 +164,6 @@ export const deleteUser = async (req, res) => {
       });
     }
 
-    // Delete the user
     await User.findByIdAndDelete(userId);
     
     res.status(200).json({ 
@@ -197,7 +177,6 @@ export const deleteUser = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error("Delete user error:", error);
     res.status(500).json({ 
       success: false,
       message: "Error deleting user", 
@@ -205,3 +184,4 @@ export const deleteUser = async (req, res) => {
     });
   }
 };
+
