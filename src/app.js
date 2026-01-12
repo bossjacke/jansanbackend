@@ -12,6 +12,7 @@ import chatRoutes from "./routes/chat.routes.js";
 import paymentRoutes from "./routes/payment.routes.js";
 import { handleStripeWebhook } from "./middleware/stripe.webhook.js";
 
+
 dotenv.config();
 const app = express();
 
