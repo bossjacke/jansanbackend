@@ -1,4 +1,5 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "functions": {
     "api/**/*.js": {
@@ -7,65 +8,19 @@
   },
   "routes": [
     {
-      "src": "/api/auth/register",
-      "dest": "/api/auth.js"
-    },
-    {
-      "src": "/api/auth/login",
-      "dest": "/api/auth.js"
-    },
-    {
-      "src": "/api/auth/google-login",
-      "dest": "/api/auth.js"
-    },
-    {
-      "src": "/api/products",
-      "dest": "/api/products.js"
-    },
-    {
-      "src": "/api/products/(.+)",
-      "dest": "/api/products.js"
-    },
-    {
-      "src": "/api/users",
-      "dest": "/api/users.js"
-    },
-    {
-      "src": "/api/users/(.+)",
-      "dest": "/api/users.js"
-    },
-    {
-      "src": "/api/orders",
-      "dest": "/api/orders.js"
-    },
-    {
-      "src": "/api/cart",
-      "dest": "/api/cart-chat.js"
-    },
-    {
-      "src": "/api/chat",
-      "dest": "/api/cart-chat.js"
-    },
-    {
-      "src": "/api/payment/(.+)",
-      "dest": "/api/payments.js"
-    },
-    {
-      "src": "/api/payment",
-      "dest": "/api/payments.js"
-    },
-    {
-      "src": "/api/health",
-      "dest": "/api/health.js"
+      "src": "/api/(.*)",
+      "headers": {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization, stripe-signature, X-Requested-With, Accept, Origin"
+      },
+      "continue": true
     },
     {
       "src": "/api/webhooks/stripe",
-      "dest": "/api/webhooks/stripe.js"
-    },
-    {
-      "src": "/api/(.*)",
+      "methods": ["POST"],
       "headers": {
-        "Access-Control-Allow-Origin": "*"
+        "Content-Type": "application/json"
       }
     }
   ],
