@@ -1,28 +1,26 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": null,
   "functions": {
     "api/**/*.js": {
       "maxDuration": 30
     }
   },
-  "routes": [
+  "headers": [
     {
-      "src": "/api/(.*)",
-      "headers": {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization, stripe-signature, X-Requested-With, Accept, Origin"
-      },
-      "continue": true
-    },
-    {
-      "src": "/api/webhooks/stripe",
-      "methods": ["POST"],
-      "headers": {
-        "Content-Type": "application/json"
-      }
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type, Authorization, stripe-signature, X-Requested-With, Accept, Origin"
+        }
+      ]
     }
-  ],
-  "regions": ["iad1"]
+  ]
 }
