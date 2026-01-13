@@ -4,6 +4,12 @@
       "maxDuration": 30
     }
   },
+  "routes": [
+    {
+      "src": "/",
+      "dest": "/index.js"
+    }
+  ],
   "headers": [
     {
       "source": "/api/(.*)",
