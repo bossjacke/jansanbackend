@@ -6,12 +6,15 @@
 - [x] Verified MongoDB cached connection utility
 - [x] Verified Stripe webhook handler configuration
 - [x] Updated `vercel.json` with maxDuration and proper routing
-- [x] Added bodyParser config to `api/products/index.js`
-- [x] Added bodyParser config to `api/cart/index.js`
-- [x] Fixed `api/auth/google-login.js` - removed duplicate generateToken function
-- [x] Created `api/health.js` - health check endpoint
-- [x] Created `.env.example` - environment variable documentation
-- [x] Updated `package.json` with build and deploy scripts
+- [x] **Combined API files to reduce function count from 15+ to 8**
+  - `api/auth.js` - register, login, google-login
+  - `api/products.js` - all product CRUD
+  - `api/users.js` - user profile, admin user management
+  - `api/orders.js` - order CRUD
+  - `api/payments.js` - payment intents, refunds, admin
+  - `api/cart-chat.js` - cart + chat endpoints
+  - `api/webhooks/stripe.js` - Stripe webhook
+  - `api/health.js` - health check
 
 ## Remaining Tasks 📋
 

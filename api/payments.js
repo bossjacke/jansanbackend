@@ -4,16 +4,55 @@ import Payment from '../../src/models/payment.model.js';
 import User from '../../src/models/user.model.js';
 import { withAuth, withRole } from '../_utils/auth.js';
 
-// POST /api/payment/create-payment-intent - Create payment intent
-// POST /api/payment/confirm - Confirm payment
-// GET /api/payment/my - Get user payments
-// POST /api/payment/refund - Process refund (admin)
-// GET /api/payment/admin/all - Get all payments (admin)
-// GET /api/payment/stripe-config - Get Stripe config
+// Vercel config
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
 
 export default async function handler(req, res) {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const pathParts = url.pathname.split('/');
+  const paymentIdParam = pathParts[pathParts.length - 1];
+  const isPaymentIdRoute = paymentIdParam && paymentIdParam !== 'my' && paymentIdParam !== 'admin' && paymentIdParam !== 'stripe-config' && !paymentIdParam.includes('create') && !paymentIdParam.includes('confirm') && !paymentIdParam.includes('refund') && paymentIdParam !== '';
+
+  // GET /api/payment/:paymentId - Get payment by ID
+  if (req.method === 'GET' && isPaymentIdRoute) {
+    const authHandler = withRole('admin')(async (req, res) => {
+      try {
+        await connectDB();
+
+        const payment = await Payment.findById(paymentIdParam)
+          .populate('userId', 'name email')
+          .populate('orderId', 'orderNumber totalAmount orderStatus');
+
+        if (!payment) {
+          return res.status(404).json({
+            success: false,
+            message: 'Payment not found',
+          });
+        }
+
+        return res.status(200).json({
+          success: true,
+          payment,
+        });
+      } catch (error) {
+        console.error('Error fetching payment:', error);
+        return res.status(500).json({
+          success: false,
+          message: 'Error fetching payment',
+          error: error.message,
+        });
+      }
+    });
+
+    return authHandler(req, res);
+  }
+
   // POST /api/payment/create-payment-intent
-  if (req.method === 'POST' && req.url.includes('/create-payment-intent')) {
+  if (req.method === 'POST' && url.pathname.includes('/create-payment-intent')) {
     const authHandler = withAuth(async (req, res) => {
       try {
         await connectDB();
@@ -87,7 +126,7 @@ export default async function handler(req, res) {
   }
 
   // POST /api/payment/confirm
-  if (req.method === 'POST' && req.url.includes('/confirm')) {
+  if (req.method === 'POST' && url.pathname.includes('/confirm')) {
     const authHandler = withAuth(async (req, res) => {
       try {
         await connectDB();
@@ -147,12 +186,11 @@ export default async function handler(req, res) {
   }
 
   // GET /api/payment/my
-  if (req.method === 'GET' && req.url.includes('/my')) {
+  if (req.method === 'GET' && url.pathname.includes('/my')) {
     const authHandler = withAuth(async (req, res) => {
       try {
         await connectDB();
 
-        const url = new URL(req.url, `http://${req.headers.host}`);
         const page = parseInt(url.searchParams.get('page') || '1');
         const limit = parseInt(url.searchParams.get('limit') || '10');
         const status = url.searchParams.get('status');
@@ -197,7 +235,7 @@ export default async function handler(req, res) {
   }
 
   // POST /api/payment/refund
-  if (req.method === 'POST' && req.url.includes('/refund')) {
+  if (req.method === 'POST' && url.pathname.includes('/refund')) {
     const authHandler = withRole('admin')(async (req, res) => {
       try {
         await connectDB();
@@ -254,12 +292,11 @@ export default async function handler(req, res) {
   }
 
   // GET /api/payment/admin/all
-  if (req.method === 'GET' && req.url.includes('/admin/all')) {
+  if (req.method === 'GET' && url.pathname.includes('/admin/all')) {
     const authHandler = withRole('admin')(async (req, res) => {
       try {
         await connectDB();
 
-        const url = new URL(req.url, `http://${req.headers.host}`);
         const page = parseInt(url.searchParams.get('page') || '1');
         const limit = parseInt(url.searchParams.get('limit') || '20');
         const status = url.searchParams.get('status');
@@ -306,11 +343,61 @@ export default async function handler(req, res) {
   }
 
   // GET /api/payment/stripe-config
-  if (req.method === 'GET' && req.url.includes('/stripe-config')) {
+  if (req.method === 'GET' && url.pathname.includes('/stripe-config')) {
     return res.status(200).json({
       publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
     });
   }
 
+  // Default: Get all payments or single payment
+  if (req.method === 'GET') {
+    const authHandler = withRole('admin')(async (req, res) => {
+      try {
+        await connectDB();
+
+        const page = parseInt(url.searchParams.get('page') || '1');
+        const limit = parseInt(url.searchParams.get('limit') || '20');
+        const status = url.searchParams.get('status');
+
+        const query = {};
+        if (status) query.status = status;
+
+        const payments = await Payment.find(query)
+          .sort({ createdAt: -1 })
+          .skip((page - 1) * limit)
+          .limit(limit)
+          .populate('userId', 'name email')
+          .populate('orderId', 'orderNumber totalAmount orderStatus');
+
+        const total = await Payment.countDocuments(query);
+
+        return res.status(200).json({
+          success: true,
+          message: 'Payments fetched successfully',
+          data: {
+            payments,
+            pagination: {
+              currentPage: page,
+              totalPages: Math.ceil(total / limit),
+              totalPayments: total,
+              hasNextPage: page * limit < total,
+              hasPrevPage: page > 1,
+            },
+          },
+        });
+      } catch (error) {
+        console.error('Error fetching payments:', error);
+        return res.status(500).json({
+          success: false,
+          message: 'Error fetching payments',
+          error: error.message,
+        });
+      }
+    });
+
+    return authHandler(req, res);
+  }
+
   return res.status(405).json({ success: false, message: 'Method not allowed' });
 }
+

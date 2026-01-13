@@ -6,32 +6,80 @@
   "installCommand": "npm install",
   "devCommand": "npm run dev",
   "functions": {
-    "api/**/*.js": {
+    "api/*.js": {
+      "maxDuration": 30
+    },
+    "api/webhooks/*.js": {
       "maxDuration": 30
     }
   },
   "routes": [
     {
-      "src": "/api/(.*)",
-      "headers": {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization, stripe-signature, X-Requested-With, Accept, Origin"
-      },
-      "continue": true
+      "src": "/api/auth/register",
+      "methods": ["POST"],
+      "dest": "/api/auth.js"
+    },
+    {
+      "src": "/api/auth/login",
+      "methods": ["POST"],
+      "dest": "/api/auth.js"
+    },
+    {
+      "src": "/api/auth/google-login",
+      "methods": ["POST"],
+      "dest": "/api/auth.js"
+    },
+    {
+      "src": "/api/products",
+      "dest": "/api/products.js"
+    },
+    {
+      "src": "/api/products/.*",
+      "dest": "/api/products.js"
+    },
+    {
+      "src": "/api/users",
+      "dest": "/api/users.js"
+    },
+    {
+      "src": "/api/users/.*",
+      "dest": "/api/users.js"
+    },
+    {
+      "src": "/api/orders",
+      "dest": "/api/orders.js"
+    },
+    {
+      "src": "/api/cart",
+      "dest": "/api/cart-chat.js"
+    },
+    {
+      "src": "/api/chat",
+      "dest": "/api/cart-chat.js"
+    },
+    {
+      "src": "/api/payment",
+      "dest": "/api/payments.js"
+    },
+    {
+      "src": "/api/payment/.*",
+      "dest": "/api/payments.js"
+    },
+    {
+      "src": "/api/health",
+      "dest": "/api/health.js"
     },
     {
       "src": "/api/webhooks/stripe",
-      "methods": ["POST"],
+      "dest": "/api/webhooks/stripe.js"
+    },
+    {
+      "src": "/api/(.*)",
       "headers": {
-        "Content-Type": "application/json"
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization"
       }
     }
   ],
-  "crons": [],
-  "regions": ["iad1"],
-  "github": {
-    "enabled": false
-  }
+  "regions": ["iad1"]
 }
-

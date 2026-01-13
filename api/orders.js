@@ -5,10 +5,67 @@ import Product from '../../src/models/product.model.js';
 import User from '../../src/models/user.model.js';
 import { withAuth } from '../_utils/auth.js';
 
-// POST /api/orders - Create order
-// GET /api/orders/my - Get user's orders
+// Vercel config
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
 
+// GET /api/orders - Get user's orders
+// POST /api/orders - Create order
 export default async function handler(req, res) {
+  // GET /api/orders - Get user's orders
+  if (req.method === 'GET') {
+    const authHandler = withAuth(async (req, res) => {
+      try {
+        await connectDB();
+
+        const url = new URL(req.url, `http://${req.headers.host}`);
+        const page = parseInt(url.searchParams.get('page') || '1');
+        const limit = parseInt(url.searchParams.get('limit') || '10');
+        const status = url.searchParams.get('status');
+
+        const query = { userId: req.user.id };
+        if (status) {
+          query.orderStatus = status;
+        }
+
+        const orders = await Order.find(query)
+          .sort({ createdAt: -1 })
+          .skip((page - 1) * limit)
+          .limit(limit)
+          .populate('products.productId', 'name type description images image');
+
+        const total = await Order.countDocuments(query);
+
+        return res.status(200).json({
+          success: true,
+          message: 'Orders fetched successfully',
+          data: {
+            orders,
+            pagination: {
+              currentPage: page,
+              totalPages: Math.ceil(total / limit),
+              totalOrders: total,
+              hasNextPage: page * limit < total,
+              hasPrevPage: page > 1,
+            },
+          },
+        });
+      } catch (error) {
+        console.error('Error fetching orders:', error);
+        return res.status(500).json({
+          success: false,
+          message: 'Error fetching orders',
+          error: error.message,
+        });
+      }
+    });
+
+    return authHandler(req, res);
+  }
+
   // POST /api/orders - Create order
   if (req.method === 'POST') {
     const authHandler = withAuth(async (req, res) => {
@@ -196,57 +253,6 @@ export default async function handler(req, res) {
         return res.status(500).json({
           success: false,
           message: 'Error creating order',
-          error: error.message,
-        });
-      }
-    });
-
-    return authHandler(req, res);
-  }
-
-  // GET /api/orders/my - Get user's orders
-  if (req.method === 'GET') {
-    const authHandler = withAuth(async (req, res) => {
-      try {
-        await connectDB();
-
-        const url = new URL(req.url, `http://${req.headers.host}`);
-        const page = parseInt(url.searchParams.get('page') || '1');
-        const limit = parseInt(url.searchParams.get('limit') || '10');
-        const status = url.searchParams.get('status');
-
-        const query = { userId: req.user.id };
-        if (status) {
-          query.orderStatus = status;
-        }
-
-        const orders = await Order.find(query)
-          .sort({ createdAt: -1 })
-          .skip((page - 1) * limit)
-          .limit(limit)
-          .populate('products.productId', 'name type description images image');
-
-        const total = await Order.countDocuments(query);
-
-        return res.status(200).json({
-          success: true,
-          message: 'Orders fetched successfully',
-          data: {
-            orders,
-            pagination: {
-              currentPage: page,
-              totalPages: Math.ceil(total / limit),
-              totalOrders: total,
-              hasNextPage: page * limit < total,
-              hasPrevPage: page > 1,
-            },
-          },
-        });
-      } catch (error) {
-        console.error('Error fetching orders:', error);
-        return res.status(500).json({
-          success: false,
-          message: 'Error fetching orders',
           error: error.message,
         });
       }
