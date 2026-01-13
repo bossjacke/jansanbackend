@@ -1,7 +1,7 @@
-import { getStripeInstance } from '../_utils/stripe.js';
-import connectDB from '../_utils/db.js';
-import Payment from '../../src/models/payment.model.js';
-import Order from '../../src/models/order.model.js';
+import { getStripeInstance } from './_utils/stripe.js';
+import connectDB from './_utils/db.js';
+import Payment from '../src/models/payment.model.js';
+import Order from '../src/models/order.model.js';
 
 // Vercel config: Disable body parser for raw body handling
 export const config = {
@@ -220,4 +220,3 @@ export default async function handler(req, res) {
     return res.status(200).json({ received: true, error: error.message });
   }
 }
-

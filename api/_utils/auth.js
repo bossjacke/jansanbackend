@@ -63,5 +63,39 @@ export function withRole(...allowedRoles) {
   };
 }
 
-export default { verifyToken, withAuth, withRole };
+// Authenticate function for serverless functions
+export async function authenticate(req) {
+  const authHeader = req.headers.authorization;
 
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return { success: false, message: 'No token, authorization denied' };
+  }
+
+  const token = authHeader.split(' ')[1];
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    
+    // Get full user details from database
+    const User = (await import('../../src/models/user.model.js')).default;
+    const user = await User.findById(decoded.id).select('-password');
+    
+    if (!user) {
+      return { success: false, message: 'User not found' };
+    }
+
+    return { success: true, user };
+  } catch (error) {
+    return { success: false, message: 'Token is not valid' };
+  }
+}
+
+// Check if user is admin
+export async function requireAdmin(user) {
+  if (user.role !== 'admin') {
+    return { success: false, message: 'Access denied. Admin role required.' };
+  }
+  return { success: true };
+}
+
+export default { verifyToken, withAuth, withRole, authenticate, requireAdmin };
